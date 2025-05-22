@@ -8,16 +8,16 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const IMAGE_DIR = path.join(__dirname, "..", "images");
+const UPLOAD_DIR = path.join(__dirname, "..", "uploads");
 
 // Create the directory if it doesn't exist
-if (!fs.existsSync(IMAGE_DIR)) {
-  fs.mkdirSync(IMAGE_DIR, { recursive: true });
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, IMAGE_DIR);
+    cb(null, UPLOAD_DIR);
   },
   filename: function (req, file, cb) {
     const timestamp = Date.now();
@@ -27,6 +27,15 @@ const storage = multer.diskStorage({
 });
 
 export const upload = multer({
-    storage,
-    limits: { files: 3 },
- });
+  storage: multer.memoryStorage(),
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === "text/csv") {
+      cb(null, true);
+    } else {
+      cb(new Error("Only CSV files are allowed"));
+    }
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  }
+});

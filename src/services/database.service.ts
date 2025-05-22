@@ -1,47 +1,31 @@
-import dotenv from 'dotenv'
-import { Db, MongoClient } from 'mongodb'
-
-// Load environment variables
-dotenv.config()
+import { closeDatabaseConnection, connectToDatabase } from '../models/csv.schema.js';
 
 class DatabaseService {
-  private client: MongoClient
-  private db!: Db // Using definite assignment assertion
-  private initialized: boolean = false
+  private static instance: DatabaseService;
+  private isConnected: boolean = false;
 
-  constructor() {
-    const uri =
-      process.env.MONGODB_URI ||
-      `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@cluster0.3cwax.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
+  private constructor() {}
 
-    if (!uri) {
-      throw new Error('MongoDB URI is not defined')
+  public static getInstance(): DatabaseService {
+    if (!DatabaseService.instance) {
+      DatabaseService.instance = new DatabaseService();
     }
-
-    this.client = new MongoClient(uri)
+    return DatabaseService.instance;
   }
 
-  async connect() {
-    if (!this.initialized) {
-      try {
-        // Connect to MongoDB
-        await this.client.connect()
+  public async connect(): Promise<void> {
+    if (!this.isConnected) {
+      await connectToDatabase();
+      this.isConnected = true;
+    }
+  }
 
-        // Initialize database
-        this.db = this.client.db(process.env.DB_NAME)
-
-        // Send a ping to confirm a successful connection
-        await this.db.command({ ping: 1 })
-        console.log('Successfully connected to MongoDB!')
-
-        this.initialized = true
-      } catch (error) {
-        console.error('Error connecting to MongoDB:', error)
-        throw error
-      }
+  public async disconnect(): Promise<void> {
+    if (this.isConnected) {
+      await closeDatabaseConnection();
+      this.isConnected = false;
     }
   }
 }
 
-const databaseService = new DatabaseService()
-export default databaseService
+export default DatabaseService.getInstance();
