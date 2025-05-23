@@ -5,7 +5,6 @@ import { upload } from "@/middlewares/file.middleware.js";
 import { getUploadedFileCollection } from "@/models/csv.schema.js";
 import { Request, RequestHandler, Response } from "express";
 
-// 👇 explicitly typing as RequestHandler[]
 export const uploadSingleFileController: RequestHandler[] = [
   upload.single("file"),
   async (req: Request, res: Response) => {
@@ -54,7 +53,7 @@ export const uploadMultipleFilesController: RequestHandler[] = [
         res.status(HTTP_STATUS.BAD_REQUEST).send(MESSAGE.NO_FILES_UPLOADED);
         return;
       }
-  
+
       const collection = getUploadedFileCollection();
       const fileDocs = files.map((file) => ({
         originalName: file.originalname,
@@ -66,7 +65,7 @@ export const uploadMultipleFilesController: RequestHandler[] = [
       }));
 
       const result = await collection.insertMany(fileDocs);
-  
+
       res.status(HTTP_STATUS.CREATED).json({
         message: MESSAGE.FILES_SAVED_TO_DB,
         files: result.insertedIds
@@ -76,5 +75,52 @@ export const uploadMultipleFilesController: RequestHandler[] = [
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).send(MESSAGE.SERVER_ERROR);
     }
   }
-  
 ];
+
+export const getFilesListController: RequestHandler = async (req: Request, res: Response) => {
+  try {
+    const collection = getUploadedFileCollection();
+
+    const currentPage = parseInt(req.query.currentPage as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const searchKeyword = req.query.searchKeyword as string || '';
+
+    const skip = (currentPage - 1) * pageSize;
+
+    const searchQuery = searchKeyword ? {
+      $or: [
+        { originalName: { $regex: searchKeyword, $options: 'i' } },
+        { filename: { $regex: searchKeyword, $options: 'i' } }
+      ]
+    } : {};
+
+    const total = await collection.countDocuments(searchQuery);
+
+    const files = await collection
+      .find(searchQuery)
+      .sort({ uploadedAt: -1 })
+      .skip(skip)
+      .limit(pageSize)
+      .project({
+        _id: 1,
+        originalName: 1,
+        filename: 1,
+        mimeType: 1,
+        size: 1,
+        uploadedAt: 1
+      })
+      .toArray();
+
+    res.status(HTTP_STATUS.OK).json({
+      currentPage,
+      pageSize,
+      searchKeyword,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+      files
+    });
+  } catch (err) {
+    console.error('Error getting files list:', err);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).send(MESSAGE.SERVER_ERROR);
+  }
+};

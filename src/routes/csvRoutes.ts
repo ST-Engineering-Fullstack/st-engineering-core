@@ -1,10 +1,13 @@
-import { uploadMultipleFilesController, uploadSingleFileController } from '@/controllers/csv.controllers.js';
 import { Router } from 'express';
+import { getFilesListController, uploadMultipleFilesController, uploadSingleFileController } from '../controllers/csv.controllers.js';
 
 const csvRouter = Router();
 
-csvRouter.post('/upload-single', uploadSingleFileController)
-csvRouter.post("/upload-multiple", uploadMultipleFilesController); 
+// Upload routes
+csvRouter.post('/upload', uploadSingleFileController);
+csvRouter.post('/upload/multiple', uploadMultipleFilesController);
 
+// Get files list route
+csvRouter.get('/files', getFilesListController);
 
 export default csvRouter; 
